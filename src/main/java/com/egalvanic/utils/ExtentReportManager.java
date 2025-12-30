@@ -215,16 +215,21 @@ public class ExtentReportManager {
      * Log step with screenshot - DETAILED REPORT ONLY
      */
     public static void logStepWithScreenshot(String stepDescription, String screenshotPath) {
-        if (detailedTest.get() != null) {
-            try {
+    if (detailedTest.get() != null) {
+        try {
+            // Use Base64 instead of file path (more reliable)
+            String base64 = ScreenshotUtil.captureScreenshotAsBase64();
+            if (base64 != null) {
                 detailedTest.get().info(stepDescription)
-                    .addScreenCaptureFromPath(screenshotPath);
-            } catch (Exception e) {
+                    .addScreenCaptureFromBase64String(base64);
+            } else {
                 detailedTest.get().info(stepDescription + " [Screenshot failed]");
             }
+        } catch (Exception e) {
+            detailedTest.get().info(stepDescription + " [Screenshot failed]");
         }
-        // Client report: NO screenshots
     }
+}
 
     /**
      * Log PASS result

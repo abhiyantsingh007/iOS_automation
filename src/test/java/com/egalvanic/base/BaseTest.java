@@ -92,7 +92,7 @@ public class BaseTest {
         
         switch (result.getStatus()) {
             case ITestResult.SUCCESS:
-                ExtentReportManager.logPass("Test PASSED: " + testName);
+                ExtentReportManager.logStepWithScreenshot("Test PASSED: " + testName, null);
                 System.out.println("✔ PASSED: " + testName);
                 break;
                 

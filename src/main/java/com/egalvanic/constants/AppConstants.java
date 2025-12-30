@@ -10,7 +10,7 @@ public class AppConstants {
     // APPIUM CONFIGURATION
     // ============================================
     public static final String APPIUM_SERVER = "http://127.0.0.1:4723";
-    public static final String APP_PATH = "/Users/abhiyantsingh/Downloads/Z Platform-Dev.app";
+    public static final String APP_PATH = "/Users/abhiyantsingh/Downloads/Z Platform-QA.app";
     public static final String DEVICE_NAME = "iPhone 17 Pro";
     public static final String PLATFORM_VERSION = "26.2";
     public static final String UDID = "B745C0EF-01AA-4355-8B08-86812A8CBBAA";
