@@ -36,23 +36,26 @@ jobs:
           unzip apps/Z-Platform-QA.zip -d apps/
 
       - name: List available simulators
-        run: xcrun simctl list devices available
+        run: |
+          echo "=== All available simulators ==="
+          xcrun simctl list devices available
 
       - name: Boot iOS Simulator
         run: |
-          # Find simulator with iOS 18.5 or higher
-          UDID=$(xcrun simctl list devices available | grep -E "iPhone.*(18\.5|19\.|26\.)" | head -1 | grep -oE '[A-F0-9-]{36}')
-          if [ -z "$UDID" ]; then
-            # Fallback to any iPhone
-            UDID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE '[A-F0-9-]{36}')
-          fi
+          # Get first available iPhone UDID
+          UDID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | awk -F '[()]' '{print $2}')
           echo "Using simulator UDID: $UDID"
           xcrun simctl boot "$UDID" || true
           echo "SIMULATOR_UDID=$UDID" >> $GITHUB_ENV
+          # Get device name
+          DEVICE=$(xcrun simctl list devices available | grep "iPhone" | head -1 | awk -F '(' '{print $1}' | xargs)
+          echo "Device name: $DEVICE"
+          echo "DEVICE_NAME=$DEVICE" >> $GITHUB_ENV
 
       - name: Get iOS Version
         run: |
-          VERSION=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE '\([0-9]+\.[0-9]+' | tr -d '(')
+          # Get iOS version from runtime
+          VERSION=$(xcrun simctl list runtimes | grep iOS | tail -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
           echo "iOS Version: $VERSION"
           echo "PLATFORM_VERSION=$VERSION" >> $GITHUB_ENV
 
@@ -66,7 +69,7 @@ jobs:
           SIMULATOR_UDID: ${{ env.SIMULATOR_UDID }}
           PLATFORM_VERSION: ${{ env.PLATFORM_VERSION }}
           APP_PATH: ${{ github.workspace }}/apps/Z Platform-QA.app
-          DEVICE_NAME: iPhone
+          DEVICE_NAME: ${{ env.DEVICE_NAME }}
         run: mvn clean test
 
       - name: Upload Test Reports
