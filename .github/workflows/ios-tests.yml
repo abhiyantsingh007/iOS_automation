@@ -9,7 +9,7 @@ on:
 
 jobs:
   ios-test:
-    runs-on: macos-latest
+    runs-on: macos-15
 
     steps:
       - name: Checkout code
@@ -40,8 +40,10 @@ jobs:
 
       - name: Boot iOS Simulator
         run: |
-          UDID=$(xcrun simctl list devices available | grep "iPhone 16" | head -1 | grep -oE '[A-F0-9-]{36}')
+          # Find simulator with iOS 18.5 or higher
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone.*(18\.5|19\.|26\.)" | head -1 | grep -oE '[A-F0-9-]{36}')
           if [ -z "$UDID" ]; then
+            # Fallback to any iPhone
             UDID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE '[A-F0-9-]{36}')
           fi
           echo "Using simulator UDID: $UDID"
@@ -64,7 +66,7 @@ jobs:
           SIMULATOR_UDID: ${{ env.SIMULATOR_UDID }}
           PLATFORM_VERSION: ${{ env.PLATFORM_VERSION }}
           APP_PATH: ${{ github.workspace }}/apps/Z Platform-QA.app
-          DEVICE_NAME: iPhone 16
+          DEVICE_NAME: iPhone
         run: mvn clean test
 
       - name: Upload Test Reports
