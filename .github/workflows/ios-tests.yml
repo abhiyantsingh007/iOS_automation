@@ -26,9 +26,9 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install Appium
+      - name: Install Appium 3.x and XCUITest driver
         run: |
-          npm install -g appium
+          npm install -g appium@next
           appium driver install xcuitest
 
       - name: Unzip App
