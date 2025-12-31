@@ -3,17 +3,18 @@ package com.egalvanic.constants;
 /**
  * Application Constants - All configurable values
  * eGalvanic iOS Automation Framework
+ * Supports both local and CI/CD environments
  */
 public class AppConstants {
 
     // ============================================
-    // APPIUM CONFIGURATION
+    // APPIUM CONFIGURATION (Environment aware)
     // ============================================
-    public static final String APPIUM_SERVER = "http://127.0.0.1:4723";
-    public static final String APP_PATH = "/Users/abhiyantsingh/Downloads/Z Platform-QA.app";
-    public static final String DEVICE_NAME = "iPhone 17 Pro";
-    public static final String PLATFORM_VERSION = "26.2";
-    public static final String UDID = "B745C0EF-01AA-4355-8B08-86812A8CBBAA";
+    public static final String APPIUM_SERVER = getEnv("APPIUM_SERVER", "http://127.0.0.1:4723");
+    public static final String APP_PATH = getEnv("APP_PATH", "/Users/abhiyantsingh/Downloads/Z Platform-QA.app");
+    public static final String DEVICE_NAME = getEnv("DEVICE_NAME", "iPhone 17 Pro");
+    public static final String PLATFORM_VERSION = getEnv("PLATFORM_VERSION", "26.2");
+    public static final String UDID = getEnv("SIMULATOR_UDID", "B745C0EF-01AA-4355-8B08-86812A8CBBAA");
     public static final String PLATFORM_NAME = "iOS";
     public static final String AUTOMATION_NAME = "XCUITest";
 
@@ -41,12 +42,11 @@ public class AppConstants {
     
     // ============================================
     // THREAD SLEEP TIMES (in milliseconds)
-    // For elements that need extra time to load
     // ============================================
-    public static final int PAGE_LOAD_WAIT = 500;      // 1 second - for page transitions
-    public static final int ELEMENT_LOAD_WAIT = 500;   // 1 second - for slow elements
-    public static final int ANIMATION_WAIT = 500;      // 1 second - for UI animations
-    public static final int SHORT_WAIT = 500;          // 1 second - for quick transitions
+    public static final int PAGE_LOAD_WAIT = 500;
+    public static final int ELEMENT_LOAD_WAIT = 500;
+    public static final int ANIMATION_WAIT = 500;
+    public static final int SHORT_WAIT = 500;
 
     // ============================================
     // REPORT CONFIGURATION
@@ -67,5 +67,13 @@ public class AppConstants {
 
     private AppConstants() {
         // Prevent instantiation
+    }
+
+    /**
+     * Get environment variable with fallback to default value
+     */
+    private static String getEnv(String key, String defaultValue) {
+        String value = System.getenv(key);
+        return (value != null && !value.isEmpty()) ? value : defaultValue;
     }
 }
