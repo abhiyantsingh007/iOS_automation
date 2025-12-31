@@ -38,46 +38,47 @@ jobs:
           ls -la apps/
 
       # ================================================
-      # KEY FIX: Proper Simulator Boot with Wait
+      # FIXED: Simpler & Reliable Simulator Boot Check
       # ================================================
       - name: Boot Simulator and Wait Until Ready
         run: |
           echo "=== Available Simulators ==="
-          xcrun simctl list devices available | grep -A 5 "iOS 18"
+          xcrun simctl list devices available | grep -E "iPhone|iOS"
           
           # Get iPhone 16 Pro UDID
           UDID=$(xcrun simctl list devices available | grep "iPhone 16 Pro" | head -1 | awk -F '[()]' '{print $2}')
           echo "Selected UDID: $UDID"
           
-          # Shutdown any existing simulator state
-          echo "Shutting down any existing simulator..."
-          xcrun simctl shutdown "$UDID" 2>/dev/null || true
-          sleep 2
+          if [ -z "$UDID" ]; then
+            echo "❌ No iPhone 16 Pro found!"
+            exit 1
+          fi
           
-          # Erase simulator for clean state (optional but recommended for CI)
-          echo "Erasing simulator for clean state..."
-          xcrun simctl erase "$UDID" 2>/dev/null || true
-          sleep 2
+          # Shutdown any existing state
+          echo "Cleaning up simulator state..."
+          xcrun simctl shutdown "$UDID" 2>/dev/null || true
+          sleep 3
           
           # Boot the simulator
           echo "Booting simulator..."
-          xcrun simctl boot "$UDID"
+          xcrun simctl boot "$UDID" 2>/dev/null || true
           
-          # Wait for simulator to fully boot (not just started)
-          echo "Waiting for simulator to fully boot..."
+          # FIXED: Simple boot check - just wait for "Booted" state
+          echo "Waiting for simulator to boot..."
           BOOT_TIMEOUT=180
           ELAPSED=0
           
           while [ $ELAPSED -lt $BOOT_TIMEOUT ]; do
-            # Check if simulator is in "Booted" state
-            STATE=$(xcrun simctl list devices | grep "$UDID" | grep -o "(Booted)" || echo "")
-            
-            if [ "$STATE" = "(Booted)" ]; then
-              # Additional check: wait for SpringBoard (home screen)
-              if xcrun simctl spawn "$UDID" launchctl print system 2>/dev/null | grep -q "com.apple.SpringBoard"; then
-                echo "✅ Simulator fully booted after ${ELAPSED}s"
-                break
-              fi
+            # Check if simulator shows as Booted
+            if xcrun simctl list devices | grep "$UDID" | grep -q "(Booted)"; then
+              echo "✅ Simulator is in Booted state after ${ELAPSED}s"
+              
+              # Give extra time for services to initialize
+              echo "Waiting 30s for system services to stabilize..."
+              sleep 30
+              
+              echo "✅ Simulator ready!"
+              break
             fi
             
             echo "Waiting for boot... (${ELAPSED}s/${BOOT_TIMEOUT}s)"
@@ -86,59 +87,46 @@ jobs:
           done
           
           if [ $ELAPSED -ge $BOOT_TIMEOUT ]; then
-            echo "❌ Simulator failed to boot within ${BOOT_TIMEOUT}s"
+            echo "❌ Simulator failed to reach Booted state within ${BOOT_TIMEOUT}s"
             xcrun simctl list devices | grep "$UDID"
             exit 1
           fi
           
-          # Extra wait for system services to stabilize
-          echo "Waiting for system services to stabilize..."
-          sleep 10
-          
           # Get device info
           DEVICE=$(xcrun simctl list devices available | grep "$UDID" | awk -F '(' '{print $1}' | xargs)
-          VERSION=$(xcrun simctl list devices | grep -B 10 "$UDID" | grep "iOS" | tail -1 | grep -oE '[0-9]+\.[0-9]+')
+          VERSION=$(xcrun simctl list devices | grep -B 20 "$UDID" | grep "-- iOS" | tail -1 | grep -oE '[0-9]+\.[0-9]+')
           
           echo "SIMULATOR_UDID=$UDID" >> $GITHUB_ENV
           echo "DEVICE_NAME=$DEVICE" >> $GITHUB_ENV
           echo "PLATFORM_VERSION=$VERSION" >> $GITHUB_ENV
           
           echo ""
-          echo "=== Simulator Ready ==="
+          echo "=== Final Configuration ==="
           echo "Device: $DEVICE"
           echo "UDID: $UDID"
           echo "iOS: $VERSION"
 
       # ================================================
-      # Verify Simulator Health Before Tests
+      # Pre-install App (Reduces Appium startup time)
       # ================================================
-      - name: Verify Simulator Health
+      - name: Pre-install App on Simulator
         run: |
-          echo "=== Simulator Status ==="
-          xcrun simctl list devices | grep "${{ env.SIMULATOR_UDID }}"
-          
-          echo ""
-          echo "=== Testing Simulator Responsiveness ==="
-          # Try to get simulator info
-          xcrun simctl getenv "${{ env.SIMULATOR_UDID }}" HOME && echo "✅ Simulator responding"
-          
-          echo ""
-          echo "=== Installing App to Verify ==="
+          echo "Installing app on simulator..."
           xcrun simctl install "${{ env.SIMULATOR_UDID }}" "apps/Z Platform-QA.app"
-          echo "✅ App installed successfully"
+          echo "✅ App pre-installed"
 
       - name: Start Appium Server
         run: |
           echo "Starting Appium..."
-          appium --relaxed-security --log-level info --log-timestamp &
+          appium --relaxed-security --log-level info &
           
-          # Wait for Appium
+          # Wait for Appium to be ready
           for i in {1..30}; do
             if curl -s http://127.0.0.1:4723/status > /dev/null; then
               echo "✅ Appium ready"
-              curl -s http://127.0.0.1:4723/status
               break
             fi
+            echo "Waiting for Appium... ($i/30)"
             sleep 2
           done
 
@@ -149,10 +137,11 @@ jobs:
           DEVICE_NAME: ${{ env.DEVICE_NAME }}
           APP_PATH: ${{ github.workspace }}/apps/Z Platform-QA.app
         run: |
-          echo "=== Running Tests ==="
+          echo "=== Test Configuration ==="
           echo "Device: $DEVICE_NAME"
           echo "iOS: $PLATFORM_VERSION"
           echo "UDID: $SIMULATOR_UDID"
+          echo "App: $APP_PATH"
           
           mvn clean test \
             -Ddevice.name="$DEVICE_NAME" \
